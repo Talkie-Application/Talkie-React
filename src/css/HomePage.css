@@ -1,0 +1,81 @@
+.main-section {
+    background-color: #FFE194;
+    flex: 1;
+    align-self: stretch;
+    display: flex;
+}
+
+.left {
+    /* background-color: white; */
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.right {
+    /* background-color: yellow; */
+    flex: 1;
+    display: flex;
+    padding: 20px;
+}
+
+.chat-box {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    background-color: rgba(240, 240, 240, 1);
+    top: 10vh;
+    border: 5px solid white;
+    border-radius: 15px;
+    padding: 15px;
+}
+
+.messages {
+    flex: 1;
+}
+
+.bottom-bar {
+    height: 50px;
+    padding: 5px;
+    border-radius: 15px;
+    display: flex;
+    background-color: #E8F6EF;
+}
+
+.text-input {
+    flex: 1;
+}
+
+.send-button {
+    display: flex;
+    width: 100px;
+    background-color: #B8DFD8;
+    border-radius: 15px;
+    margin-left: 15px;
+    text-align: center;
+    align-items: center;
+    color: #5d726f;
+}
+
+.logo {
+    width: 75px;
+    user-select: none;
+}
+
+.buttons-group {
+    display: flex;
+    flex: 1;
+}
+
+.form-button {
+    flex: 1;
+    margin: 1px;
+}
+
+.form-chat {
+    display: flex;
+    flex: 1;
+}
