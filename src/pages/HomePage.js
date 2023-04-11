@@ -14,7 +14,7 @@ const mediaConstraints = {
   };
 
 
-export const HomePage = () => {
+const HomePage = () => {
     const [loggedIn, setLoggedIn] = useState(false);
     const [userId, setUserId] = useState();     // TODO: change to context
     const [data, setData] = useState({
@@ -347,7 +347,31 @@ export const HomePage = () => {
                 console.log(error);
             });
         } else if (e.target.name === 'signUp') {
-            
+            await fetch('http://localhost:3000/api/signUp', {
+                method: 'POST',
+                mode: 'cors',
+                cache: 'no-cache',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                redirect: 'follow',
+                referrerPolicy: 'no-referrer',
+                body: JSON.stringify(data)
+            })
+            .then((res) => {
+                if (res.status === 200) {
+                    setLoggedIn(true);
+                    setUserId(String(Math.round(Math.random() * 10000)));       // TODO: get from server
+                }
+                return res.json();  // a promise
+            })
+            .then((json) => {
+                console.log(json);  
+            })
+            .catch((error) => {
+                console.log(error);
+            });
         }
     }
 
@@ -430,3 +454,5 @@ export const HomePage = () => {
         </div>
     );
 }
+
+export default HomePage;
