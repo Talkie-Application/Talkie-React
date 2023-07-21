@@ -4,22 +4,32 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from 'react-bootstrap/Navbar';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
-import CallPage from './pages/CallPage';
+// import CallPage from './pages/CallPage';
+import { Provider as UserIdContextProvider } from './contexts/UserIdContext';
+import { AuthLayout } from './layouts/AuthLayout';
 
 function App() {
   return (
-    <Router>
-      <section className='page'>
-        <Navbar>
-          <h1 className='brand'>Talkie</h1>
-        </Navbar>
+    <UserIdContextProvider>
+      <Router>
+        <section className='page'>
+          
 
-        <Routes>
-          <Route path='/' element={<HomePage />} />
-          <Route path='/login' element={<LoginPage />} />
-        </Routes>
-      </section>
-    </Router>
+          <Routes>
+            <Route path='/login' element={<LoginPage />} />
+
+            <Route element={<AuthLayout />}>
+              <Route path='/' element={<HomePage />} />
+              
+            </Route>
+          </Routes>
+
+          <Navbar style={{position: 'absolute'}}>
+            <h1 className='brand'>Talkie</h1>
+          </Navbar>
+        </section>
+      </Router>
+    </UserIdContextProvider>
   );
 }
 

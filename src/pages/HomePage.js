@@ -1,7 +1,7 @@
 import '../css/HomePage.css';
-import Form from 'react-bootstrap/Form';
 import Button from 'react-bootstrap/Button';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { Context as UserIdContext } from '../contexts/UserIdContext';
 
 
 const mediaConstraints = {
@@ -16,11 +16,8 @@ const mediaConstraints = {
 
 const HomePage = () => {
     const [loggedIn, setLoggedIn] = useState(false);
-    const [userId, setUserId] = useState();     // TODO: change to context
-    const [data, setData] = useState({
-        username: '',
-        password: ''
-    })
+    const userId = useContext(UserIdContext);
+
     const [webSocketReady, setWebSocketReady] = useState(false);
     const [connection, setConnection] = useState();
     const [peerConnection, setPeerConnection] = useState();
@@ -74,7 +71,7 @@ const HomePage = () => {
             if (webSocketReady) {
                 connection.send(JSON.stringify({
                     type: 'queue',
-                    id: userId,
+                    id: userId.state,
                     location: ''
                 }));                    // TODO: location
             }
@@ -91,18 +88,6 @@ const HomePage = () => {
     }, [connection, webSocketReady]);
 
     useEffect(() => {
-        async function setupWebcam() {
-            try {
-                await navigator.mediaDevices.getUserMedia(mediaConstraints).then((value) => {
-                    setWebcamStream(value);
-                });
-                // setWebcamStream(await navigator.mediaDevices.getUserMedia(mediaConstraints));
-            } catch(err) {
-                handleGetMediaError(err);
-                return;
-            }
-        }
-
         async function addCandidate() {
             var candidate = new RTCIceCandidate(iceCandidate);
 
@@ -114,29 +99,34 @@ const HomePage = () => {
             }
         }
 
-        if (peerConnection) {
+        if (peerConnection && webcamStream) {
             // need to set up webcam video and audio media before running peer connection code
             // otherwise might not transmit video and audio
-            setupWebcam().then(() => {
-                peerConnection.onicecandidate = handleICECandidateEvent;
-                peerConnection.oniceconnectionstatechange = handleICEConnectionStateChangeEvent;
-                peerConnection.onicegatheringstatechange = handleICEGatheringStateChangeEvent;
-                peerConnection.onsignalingstatechange = handleSignalingStateChangeEvent;
-                peerConnection.onnegotiationneeded = handleNegotiationNeededEvent;
-                peerConnection.ontrack = handleTrackEvent;
+            try {
+                webcamStream.getTracks().forEach(
+                    track => peerConnection.addTrack(track, webcamStream)
+                )
+            } catch(err) {
+                if (err.name !== "InvalidAccessError") throw err;
+            }
+            peerConnection.onicecandidate = handleICECandidateEvent;
+            peerConnection.oniceconnectionstatechange = handleICEConnectionStateChangeEvent;
+            peerConnection.onicegatheringstatechange = handleICEGatheringStateChangeEvent;
+            peerConnection.onsignalingstatechange = handleSignalingStateChangeEvent;
+            peerConnection.onnegotiationneeded = handleNegotiationNeededEvent;
+            peerConnection.ontrack = handleTrackEvent;
 
-                if (receivedSDP && !isCaller) {
-                    // only for callee
-                    handleCalleePeerConnection();
-                } else if (receivedSDP) {
-                    // only for caller
-                    acceptCall();
-                }
+            if (receivedSDP && !isCaller) {
+                // only for callee
+                handleCalleePeerConnection();
+            } else if (receivedSDP) {
+                // only for caller
+                acceptCall();
+            }
 
-                if (iceCandidate) {
-                    addCandidate();
-                }
-            });
+            if (iceCandidate) {
+                addCandidate();
+            }
         }
         // eslint-disable-next-line
     }, [peerConnection, receivedSDP, iceCandidate])
@@ -145,10 +135,6 @@ const HomePage = () => {
         if (webcamStream) {
             try {
                 document.getElementById('local_video').srcObject = webcamStream;
-
-                webcamStream.getTracks().forEach(
-                    track => peerConnection.addTrack(track, webcamStream)
-                )
             } catch(err) {
                 handleGetMediaError(err);
             }
@@ -171,6 +157,12 @@ const HomePage = () => {
         }
     }, [targetUserId])
 
+
+    const setupWebcam = async() => {
+        await navigator.mediaDevices.getUserMedia(mediaConstraints).then((value) => {
+            setWebcamStream(value);
+        });
+    }
 
     const handleICECandidateEvent = (e) => {
         if (e.candidate) {
@@ -230,7 +222,7 @@ const HomePage = () => {
                 console.log("---> Sending the offer to the remote peer");
                 connection.send(JSON.stringify({
                     type: 'video-offer',
-                    id: userId,
+                    id: userId.state,
                     target: targetUserId,
                     sdp: peerConnection.localDescription
                 }));
@@ -283,7 +275,7 @@ const HomePage = () => {
 
             connection.send(JSON.stringify({
                 type: 'video-answer',
-                id: userId,
+                id: userId.state,
                 target: targetUserId,
                 sdp: peerConnection.localDescription
             }));
@@ -314,75 +306,20 @@ const HomePage = () => {
         setReceivedSDP(msg.sdp);        // triggers useEffect
     }
 
-    const handleChange = (e) => {
-        setData({...data, [e.target.name]: e.target.value});
-    }
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (e.target.name === 'login') {
-            await fetch('http://localhost:3000/api/login', {
-                method: 'POST',
-                mode: 'cors',
-                cache: 'no-cache',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                redirect: 'follow',
-                referrerPolicy: 'no-referrer',
-                body: JSON.stringify(data)
-            })
-            .then((res) => {
-                if (res.status === 200) {
-                    setLoggedIn(true);
-                    setUserId(String(Math.round(Math.random() * 10000)));       // TODO: get from server
-                }
-                return res.json();  // a promise
-            })
-            .then((json) => {
-                console.log(json);  
-            })
-            .catch((error) => {
-                console.log(error);
-            });
-        } else if (e.target.name === 'signUp') {
-            await fetch('http://localhost:3000/api/signUp', {
-                method: 'POST',
-                mode: 'cors',
-                cache: 'no-cache',
-                credentials: 'same-origin',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                redirect: 'follow',
-                referrerPolicy: 'no-referrer',
-                body: JSON.stringify(data)
-            })
-            .then((res) => {
-                if (res.status === 200) {
-                    setLoggedIn(true);
-                    setUserId(String(Math.round(Math.random() * 10000)));       // TODO: get from server
-                }
-                return res.json();  // a promise
-            })
-            .then((json) => {
-                console.log(json);  
-            })
-            .catch((error) => {
-                console.log(error);
-            });
-        }
-    }
 
     const handleGetMediaError = (err) => {
-        console.log(err);
+        alert("Webcam or audio sources is not found or permission is not granted, please try again.");
     }
 
 
     const handleQueue = (e) => {
-        setConnection(new WebSocket(`ws://localhost:3000/websockets?id=${userId}`));
-        
+        setLoggedIn(true);
+        setupWebcam().then(() => {
+            setConnection(new WebSocket(`ws://localhost:3000/websockets?id=${userId.state}`));
+        })
+        .catch((error) => {
+            handleGetMediaError(error)
+        });        
     }
 
     const closeVideoCall = () => {
@@ -390,68 +327,53 @@ const HomePage = () => {
     }
 
     return (
-        <div className='main-section'>
-            <div className='left'>
-                {!loggedIn && 
-                    <>
-                        <img className='logo' src="/logo.PNG" alt="logo"/>
-                        <h1>Talkie</h1>
-                        <p>Find and chat with people near you!</p>
-                        <Form>
-                            <Form.Group className='mb-3' controlId='formBasicUsername'>
-                                <Form.Control name='username' type="text" placeholder="Username" onChange={handleChange}/>
-                            </Form.Group>
-                            <Form.Group className='mb-3' controlId='formBasicPassword'>
-                                <Form.Control name='password' type="password" placeholder="Password" onChange={handleChange}/>
-                            </Form.Group>
-                            <Form.Group className='buttons-group' controlId='formBasicButtons'>
-                                <Button name='login' variant='secondary' type='submit' className='form-button' onClick={handleSubmit}>Login</Button>
-                                <Button name='signUp' variant='secondary' type='submit' className='form-button' onClick={handleSubmit}>Sign Up</Button>
-                            </Form.Group>
-                        </Form>
-                    </>
-                }
-                {loggedIn && 
-                    <div className='left-logged-in'>
-                        <Button name='view-friends' variant='secondary' className='form-button'>View friends</Button>
-                        <Button name='search-friends' variant='secondary' className='form-button'>Look up a user</Button>
-                        <Button name='search-nearby' variant='secondary' className='form-button' onClick={handleQueue}>Talk with a nearby user!</Button>
+        <>
+            <div className='call-nav' />
+            <div className='main-section'>
+                <div className='call-header'>
+                    <Button name='search-nearby' variant='secondary' className='form-button' onClick={handleQueue}>Talk with a nearby user!</Button>
+                </div>
+                <div className='call-main'>
+                    <div className='frame-received'>
+                        <video className='video-received' id='received_video' autoPlay />
                     </div>
-                }
-            </div>
-            <div className='right'>
-                <video id='local_video' autoPlay muted />
-                <video id='received_video' autoPlay />
-                {/* <div className='chat-box'>
-                    {!loggedIn && 
-                        <div className='home-right'>
-                            <div>
-                                <h3><span className='title'>Talkie</span>, a free-to-use messaging and video call application, we have NO ACCESS to your <span className='description'>messages</span> or <span className='description'>video stream data</span>, so your conversations will be kept to just you and people you meet!</h3>
-                                <h3>Sign up now and start meeting people!</h3>
-                            </div>
-                            <p>Application created by Roy Chan & Ethan Chen</p>
+                    <div>
+                        <div className='frame-local'>
+                            <video className='video-local' id='local_video' autoPlay muted />
                         </div>
-                    }
-                    {loggedIn && 
-                        <>
-                            <div className='messages'>
-                                hi, this is a test
+                    </div>
+                </div>
+                
+                    {/* <div className='chat-box'>
+                        {!loggedIn && 
+                            <div className='home-right'>
+                                <div>
+                                    <h3><span className='title'>Talkie</span>, a free-to-use messaging and video call application, we have NO ACCESS to your <span className='description'>messages</span> or <span className='description'>video stream data</span>, so your conversations will be kept to just you and people you meet!</h3>
+                                    <h3>Sign up now and start meeting people!</h3>
+                                </div>
+                                <p>Application created by Roy Chan & Ethan Chen</p>
                             </div>
-                            <div className='bottom-bar'>
-                                <Form className='form-chat'>
-                                    <Form.Group controlId='formBasicChat' className='text-input'>
-                                        <Form.Control type='text' placeholder='Enter message'/>
-                                    </Form.Group>
-                                    <Button variant='secondary' type='submit' className='send-button'>
-                                        <p style={{flex: 1, margin: 0}}>Send</p>
-                                    </Button>
-                                </Form>
-                            </div>
-                        </>
-                    }
-                </div> */}
+                        }
+                        {loggedIn && 
+                            <>
+                                <div className='messages'>
+                                    hi, this is a test
+                                </div>
+                                <div className='bottom-bar'>
+                                    <Form className='form-chat'>
+                                        <Form.Group controlId='formBasicChat' className='text-input'>
+                                            <Form.Control type='text' placeholder='Enter message'/>
+                                        </Form.Group>
+                                        <Button variant='secondary' type='submit' className='send-button'>
+                                            <p style={{flex: 1, margin: 0}}>Send</p>
+                                        </Button>
+                                    </Form>
+                                </div>
+                            </>
+                        }
+                    </div> */}
             </div>
-        </div>
+        </>
     );
 }
 

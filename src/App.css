@@ -7,16 +7,14 @@ body {
   width: 100vw;
   display: flex;
   flex-direction: column;
-}
-
-nav {
-  background-color: #ffd876;
+  
 }
 
 .brand {
-  color: #FFE194;
-  -webkit-text-stroke-width: 1.5px;
-  -webkit-text-stroke-color: black;
+  color: white;
+  -webkit-text-stroke-width: 1px;
+  -webkit-text-stroke-color: #144272;
   margin-left: 15px;
   user-select: none;
+  font-weight: 200;
 }
